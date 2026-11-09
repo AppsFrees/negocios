@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="description" content="Explora negocios, servicios y promociones cerca de ti.">
+  <meta name="application-name" content="Explorador de Negocios">
+  <title>Explorador de Negocios</title>
+  <script type="module" crossorigin src="./assets/index-Be8cY-lR.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/preload-helper-CRzLMJPS.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-DEVlRozQ.css">
+  <link rel="stylesheet" href="./assets/ux-upgrade.css">
+</head>
+<body class="dark:bg-slate-900 bg-slate-100 text-slate-800 dark:text-slate-100 antialiased h-full w-full select-none">
+
+  <!-- MAP VIEW -->
+  <div id="map"></div>
+
+  <!-- OFFLINE STATUS PILL -->
+  <div id="offline-banner" class="fixed top-2 left-1/2 -translate-x-1/2 z-30 hidden items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/90 text-white text-xs font-semibold shadow-lg backdrop-blur-md">
+    <i class="ph-bold ph-wifi-slash"></i>
+    <span>Modo Offline: Base de datos local activa</span>
+  </div>
+
+  <!-- MAIN HEADER (EXPLORER MODE) -->
+  <header id="main-header" class="fixed top-0 inset-x-0 z-20 p-2 sm:p-3 pointer-events-none" style="padding-top: max(0.6rem, env(safe-area-inset-top));">
+    <div class="glass pointer-events-auto rounded-3xl p-3 max-w-3xl mx-auto space-y-2.5">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-md shadow-indigo-500/30">
+          <i class="ph-fill ph-storefront text-lg"></i>
+        </div>
+        <h1 class="font-bold text-base sm:text-lg flex-1 truncate tracking-tight">Directorio de Negocios</h1>
+        
+        <!-- Country Selector (Replaced Zone Selector) -->
+        <select id="country-select" aria-label="Filtrar por país" class="rounded-full bg-slate-500/15 text-xs sm:text-sm font-semibold px-2.5 py-1.5 outline-none dark:bg-slate-800/80 cursor-pointer">
+          <option value="all">🌍 Todos los países</option>
+          <option value="PE" selected>🇵🇪 Perú</option>
+          <option value="CO">🇨🇴 Colombia</option>
+          <option value="MX">🇲🇽 México</option>
+          <option value="AR">🇦🇷 Argentina</option>
+          <option value="CL">🇨🇱 Chile</option>
+          <option value="ES">🇪🇸 España</option>
+          <option value="US">🇺🇸 EE.UU.</option>
+          <option value="OT">🌐 Otro</option>
+        </select>
+
+        <!-- View Mode: Map / List Toggle -->
+        <button id="view-toggle" aria-label="Alternar entre mapa y lista" class="fab !w-8 !h-8 !text-base bg-slate-500/15 dark:bg-slate-800/80" title="Alternar Mapa/Lista">
+          <i class="ph-bold ph-list-dashes"></i>
+        </button>
+
+        <!-- Satellite toggle -->
+        <button id="btn-satellite" aria-label="Cambiar vista de mapa" class="fab !w-8 !h-8 !text-base bg-slate-500/15 dark:bg-slate-800/80" title="Vista Satélite">
+          <i class="ph-bold ph-globe-hemisphere-west"></i>
+        </button>
+
+        <!-- Theme toggle -->
+        <button id="theme" aria-label="Cambiar tema claro u oscuro" class="fab !w-8 !h-8 !text-base bg-slate-500/15 dark:bg-slate-800/80" title="Tema">
+          <i class="ph-fill ph-moon"></i>
+        </button>
+      </div>
+
+      <!-- Search input -->
+      <div class="relative">
+        <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base"></i>
+        <input id="q" placeholder="Buscar negocio, café, comida, ropa, servicios…" class="w-full rounded-full bg-slate-500/15 pl-9 pr-3 py-1.5 text-xs sm:text-sm outline-none dark:bg-slate-800/60 dark:placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/50 transition">
+      </div>
+
+      <!-- Categories chips bar with Add Category button -->
+      <div class="flex items-center gap-1.5 overflow-x-auto noscroll py-0.5">
+        <button id="btn-add-cat-quick" class="chip !py-1 !px-2.5 !bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-600 hover:text-white transition" title="Agregar nueva categoría">
+          <i class="ph-bold ph-plus"></i> Categoría
+        </button>
+        <div id="chips" class="flex gap-1.5 shrink-0"></div>
+      </div>
+
+      <!-- Sub header bar: Count & Registrar Negocio (Replaced 'Sorpréndeme') -->
+      <div class="flex items-center justify-between text-xs pt-0.5">
+        <span id="count" class="font-semibold opacity-75">Cargando negocios…</span>
+        <button id="btn-header-add" class="chip !py-1 !px-3 !bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition font-bold flex items-center gap-1.5 shadow-sm">
+          <i class="ph-bold ph-plus-circle text-base"></i>
+          <span>Registrar Negocio</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- LIST VIEW (OFFLINE / CARDS BROWSER) -->
+  <section id="list-view" class="fixed inset-0 z-10 pt-48 pb-20 px-3 overflow-y-auto hidden">
+    <div class="max-w-2xl mx-auto space-y-3" id="cards-container"></div>
+  </section>
+
+  <!-- FLOATING ACTION BUTTONS -->
+  <div id="fabs">
+    <button id="gps" aria-label="Ir a mi ubicación" class="fab glass text-indigo-600 dark:text-indigo-400" title="Mi Ubicación GPS">
+      <i class="ph-bold ph-crosshair"></i>
+    </button>
+  </div>
+
+  <!-- BUSINESS DETAILS BOTTOM SHEET -->
+  <section id="sheet" class="glass text-slate-800 dark:text-slate-100">
+    <div id="grip" class="py-2.5 flex justify-center cursor-grab active:cursor-grabbing" style="touch-action:none">
+      <div class="w-12 h-1.5 rounded-full bg-slate-400/70"></div>
+    </div>
+    <div id="sc"></div>
+  </section>
+
+  <!-- BUSINESS OWNER / ENTERPRISE DASHBOARD VIEW -->
+  <section id="owner-panel" class="fixed inset-0 z-30 pt-4 pb-20 px-3 sm:px-4 overflow-y-auto hidden glass" style="padding-top: max(1rem, env(safe-area-inset-top));">
+    <div class="max-w-2xl mx-auto space-y-4">
+      
+      <!-- Panel Header -->
+      <div class="flex items-center justify-between pb-2 border-b border-slate-300/40 dark:border-slate-700/60">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-xl shadow-md shadow-indigo-500/30">
+            <i class="ph-fill ph-buildings"></i>
+          </div>
+          <div>
+            <h2 class="font-bold text-lg leading-tight">Panel de Mi Empresa</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Analíticas, visibilidad y base de datos offline</p>
+          </div>
+        </div>
+        <button id="btn-close-owner" class="fab !w-9 !h-9 text-slate-600 dark:text-slate-300 bg-slate-500/15">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <!-- Quick Stats Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div class="glass-card rounded-2xl p-3 text-center">
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Registrados</p>
+          <p id="stat-total-biz" class="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-0.5">0</p>
+        </div>
+        <div class="glass-card rounded-2xl p-3 text-center">
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Vistas Ficha</p>
+          <p id="stat-views" class="text-xl font-black text-sky-600 dark:text-sky-400 mt-0.5">0</p>
+        </div>
+        <div class="glass-card rounded-2xl p-3 text-center">
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Rutas GPS</p>
+          <p id="stat-routes" class="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">0</p>
+        </div>
+        <div class="glass-card rounded-2xl p-3 text-center">
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">CTR Rutas</p>
+          <p id="stat-ctr" class="text-xl font-black text-amber-500 mt-0.5">0%</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col sm:flex-row gap-2">
+        <button id="btn-open-register" class="flex-1 py-3 px-4 rounded-2xl bg-indigo-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-indigo-500/30 active:scale-98 transition">
+          <i class="ph-bold ph-plus-circle text-lg"></i>
+          <span>Registrar Nueva Empresa</span>
+        </button>
+        <button id="btn-export-csv" class="py-3 px-4 rounded-2xl bg-slate-500/20 text-slate-800 dark:text-slate-100 font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 active:scale-98 transition" title="Descargar métricas en Excel/CSV">
+          <i class="ph-bold ph-file-csv text-lg"></i>
+          <span>Métricas (CSV)</span>
+        </button>
+      </div>
+
+      <!-- Backup / Restore Tools -->
+      <div class="glass-card rounded-2xl p-3.5 space-y-2 text-xs">
+        <div class="flex items-center justify-between font-bold">
+          <span class="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
+            <i class="ph-bold ph-database"></i> Copia de Seguridad & Conservación
+          </span>
+          <span class="text-[11px] opacity-70">100% Offline</span>
+        </div>
+        <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+          Tus empresas se guardan en la memoria interna de la app. Al actualizar el APK, tus datos se conservan automáticamente sin perder nada.
+        </p>
+        <div class="flex flex-wrap gap-2 pt-1">
+          <button id="btn-export-db" class="py-1.5 px-3 rounded-full bg-slate-500/20 hover:bg-slate-500/30 font-semibold flex items-center gap-1">
+            <i class="ph-bold ph-download-simple"></i> Exportar Respaldo (JSON)
+          </button>
+          <label class="cursor-pointer py-1.5 px-3 rounded-full bg-slate-500/20 hover:bg-slate-500/30 font-semibold flex items-center gap-1">
+            <i class="ph-bold ph-upload-simple"></i> Restaurar Copia
+            <input type="file" id="input-import-file" accept=".json" class="hidden">
+          </label>
+          <button id="btn-reset-demo" class="py-1.5 px-3 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
+            <i class="ph-bold ph-arrow-counter-clockwise"></i> Restaurar Demos
+          </button>
+        </div>
+      </div>
+
+      <!-- User's Registered Companies List -->
+      <div class="space-y-2">
+        <h3 class="font-bold text-sm tracking-wide uppercase text-slate-500 dark:text-slate-400">
+          Mis Empresas Registradas
+        </h3>
+        <div id="owner-biz-list" class="space-y-2.5"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FORM MODAL (ADD / EDIT BUSINESS WITH STRICT PLAN PERMISSIONS) -->
+  <div id="biz-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-3 bg-black/60 backdrop-blur-sm">
+    <div class="glass rounded-3xl p-4 sm:p-5 max-w-lg w-full max-h-[92dvh] overflow-y-auto text-slate-800 dark:text-slate-100 space-y-3.5 shadow-2xl">
+      
+      <!-- Modal Header -->
+      <div class="flex justify-between items-center pb-1 border-b border-slate-300/40 dark:border-slate-700/60">
+        <h2 id="modal-title" class="font-bold text-base sm:text-lg flex items-center gap-2">
+          <i class="ph-fill ph-storefront text-indigo-500"></i>
+          <span>Registrar Mi Empresa</span>
+        </h2>
+        <button id="btn-close-modal" class="fab !w-8 !h-8 text-xl bg-slate-500/20">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <!-- Business Form -->
+      <form id="form-business" class="space-y-3 text-xs sm:text-sm">
+        <input type="hidden" id="biz-id" value="">
+
+        <!-- Plan / Tier Selector (Strict rules) -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="font-bold text-xs opacity-90">Selecciona el Plan de Visibilidad *</label>
+            <span id="plan-badge-indicator" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-300 dark:bg-slate-700">Plan Básico</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="cursor-pointer border-2 rounded-2xl p-2.5 text-center transition flex flex-col items-center justify-between" id="tier-label-free">
+              <input type="radio" name="biz-tier" value="free" class="sr-only" checked>
+              <span class="font-bold text-xs">Básico</span>
+              <span class="text-[10px] opacity-70">S/ 0</span>
+              <span class="text-[9px] mt-1 text-slate-500">1 foto · 80 car.</span>
+            </label>
+            <label class="cursor-pointer border-2 rounded-2xl p-2.5 text-center transition flex flex-col items-center justify-between" id="tier-label-gold">
+              <input type="radio" name="biz-tier" value="gold" class="sr-only">
+              <span class="font-bold text-xs text-amber-500">★ Gold</span>
+              <span class="text-[10px] opacity-70">S/ 29/m</span>
+              <span class="text-[9px] mt-1 text-amber-500">3 fotos · WhatsApp</span>
+            </label>
+            <label class="cursor-pointer border-2 rounded-2xl p-2.5 text-center transition flex flex-col items-center justify-between" id="tier-label-platinum">
+              <input type="radio" name="biz-tier" value="platinum" class="sr-only">
+              <span class="font-bold text-xs text-purple-600 dark:text-purple-400">👑 Platinum</span>
+              <span class="text-[10px] opacity-70">S/ 79/m</span>
+              <span class="text-[9px] mt-1 text-purple-500">6 fotos · Eventos</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Name & Country -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div class="space-y-1">
+            <label class="font-bold text-xs opacity-90">Nombre del Negocio *</label>
+            <input type="text" id="biz-name" required placeholder="Ej: Café Wari" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-2 outline-none font-medium">
+          </div>
+          <div class="space-y-1">
+            <label class="font-bold text-xs opacity-90">País *</label>
+            <select id="biz-country" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-2 outline-none font-medium cursor-pointer">
+              <option value="PE" selected>🇵🇪 Perú</option>
+              <option value="CO">🇨🇴 Colombia</option>
+              <option value="MX">🇲🇽 México</option>
+              <option value="AR">🇦🇷 Argentina</option>
+              <option value="CL">🇨🇱 Chile</option>
+              <option value="ES">🇪🇸 España</option>
+              <option value="US">🇺🇸 Estados Unidos</option>
+              <option value="OT">🌐 Otro país</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Category (Dynamic & Editable) -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="font-bold text-xs opacity-90">Categoría del Negocio *</label>
+            <button type="button" id="btn-form-new-cat" class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+              <i class="ph-bold ph-plus"></i> Añadir nueva categoría
+            </button>
+          </div>
+          <select id="biz-category" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-2.5 outline-none font-medium cursor-pointer">
+            <!-- Dynamic categories populated via JS -->
+          </select>
+        </div>
+
+        <!-- Phone (All plans) & WhatsApp (Gold & Platinum only) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div class="space-y-1">
+            <label class="font-bold text-xs opacity-90">Teléfono para Llamadas *</label>
+            <input type="tel" id="biz-phone" required placeholder="+51 987 654 321" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-2 outline-none font-medium">
+          </div>
+
+          <!-- WhatsApp field: Locked on Free, Active on Gold & Platinum -->
+          <div id="field-whatsapp" class="space-y-1">
+            <div class="flex items-center justify-between">
+              <label class="font-bold text-xs opacity-90 flex items-center gap-1">
+                <i class="ph-fill ph-whatsapp-logo text-emerald-500"></i> WhatsApp Clientes
+              </label>
+              <span id="lock-whatsapp" class="text-[10px] text-amber-500 font-bold hidden">🔒 Requiere Gold</span>
+            </div>
+            <input type="text" id="biz-whatsapp" placeholder="51987654321" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-2 outline-none font-medium">
+          </div>
+        </div>
+
+        <!-- Address & Resumed Schedule (All plans) -->
+        <div class="space-y-1">
+          <label class="font-bold text-xs opacity-90">Dirección Física *</label>
+          <input type="text" id="biz-address" required placeholder="Ej: Jr. 28 de Julio 215" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-2 outline-none font-medium">
+        </div>
+
+        <div class="space-y-1">
+          <label class="font-bold text-xs opacity-90">Horario Resumido *</label>
+          <input type="text" id="biz-schedule" required placeholder="Ej: Lun - Sáb: 8:00 am - 9:30 pm" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-2 outline-none font-medium">
+        </div>
+
+        <!-- Coordinates (Mi GPS / Tocar mapa - All plans) -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="font-bold text-xs opacity-90">Coordenadas en el Mapa *</label>
+            <div class="flex gap-1">
+              <button type="button" id="btn-pick-gps" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+                <i class="ph-bold ph-crosshair"></i> Mi GPS
+              </button>
+              <span class="opacity-30">|</span>
+              <button type="button" id="btn-pick-map" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+                <i class="ph-bold ph-map-pin"></i> Tocar Mapa
+              </button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <input type="number" step="any" id="biz-lat" required placeholder="Latitud (-12.046)" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-1.5 outline-none font-mono text-xs">
+            <input type="number" step="any" id="biz-lng" required placeholder="Longitud (-77.030)" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-1.5 outline-none font-mono text-xs">
+          </div>
+          <p id="map-pick-hint" class="text-[11px] text-indigo-600 dark:text-indigo-400 hidden">
+            ✨ Toca cualquier punto del mapa para fijar la ubicación del local.
+          </p>
+        </div>
+
+        <!-- Description with Dynamic Character Limit (80 en Básico, 180 en Gold, 360 en Platinum) -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="font-bold text-xs opacity-90">Descripción del Negocio</label>
+            <span id="desc-char-count" class="text-[11px] font-mono font-bold text-indigo-600 dark:text-indigo-400">0 / 80</span>
+          </div>
+          <textarea id="biz-desc" rows="2" maxlength="80" placeholder="Escribe los servicios o productos más destacados…" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-2 outline-none font-medium resize-none"></textarea>
+        </div>
+
+        <!-- Photos Upload with Plan Limit (1 en Básico, 3 en Gold, 6 en Platinum) -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="font-bold text-xs opacity-90">
+              Fotos del Negocio <span id="photo-limit-label" class="text-[11px] font-normal opacity-70">(Máx. 1 foto)</span>
+            </label>
+            <label id="btn-upload-photo-label" class="cursor-pointer text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+              <i class="ph-bold ph-camera"></i> Subir Foto
+              <input type="file" id="biz-photo-input" accept="image/*" class="hidden">
+            </label>
+          </div>
+          <div id="biz-photos-preview" class="flex gap-2 overflow-x-auto noscroll py-1"></div>
+        </div>
+
+        <!-- Checkboxes: Abierto ahora & Sello Verificado (Gold & Platinum only) -->
+        <div id="field-checkboxes-gold" class="grid grid-cols-2 gap-2 pt-1">
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="biz-isopen" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+            <label for="biz-isopen" class="font-semibold text-xs cursor-pointer">Abierto ahora</label>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="biz-verified" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+            <label for="biz-verified" class="font-semibold text-xs cursor-pointer">✔ Sello Verificado</label>
+          </div>
+        </div>
+
+        <!-- Promotional Coupon (Platinum Only) -->
+        <div id="field-promo" class="space-y-1.5 p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
+          <div class="flex items-center justify-between">
+            <label class="font-bold text-xs text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+              <i class="ph-bold ph-ticket"></i> Cupón de Descuento para Clientes
+            </label>
+            <span class="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-purple-600 text-white">Exclusivo Platinum</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <input type="text" id="biz-promo-code" placeholder="Código (ej. PROMO15)" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-1.5 outline-none font-mono uppercase text-xs">
+            <input type="number" id="biz-promo-off" placeholder="% Descuento (ej. 15)" min="1" max="100" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-1.5 outline-none text-xs">
+          </div>
+          <input type="text" id="biz-promo-label" placeholder="Descripción breve (ej. 15% OFF en toda la carta)" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-1.5 outline-none text-xs">
+        </div>
+
+        <!-- Important Events Option (Platinum Only) -->
+        <div id="field-event" class="space-y-2 p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20">
+          <div class="flex items-center justify-between">
+            <label class="font-bold text-xs text-purple-700 dark:text-purple-300 flex items-center gap-1">
+              <i class="ph-bold ph-calendar-star"></i> Eventos Importantes del Negocio
+            </label>
+            <span class="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-purple-600 text-white">Exclusivo Platinum</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input type="text" id="biz-event-title" placeholder="Título del evento (ej. Noche de Jazz)" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-1.5 outline-none text-xs">
+            <input type="date" id="biz-event-date" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-1.5 outline-none text-xs">
+          </div>
+          <textarea id="biz-event-desc" rows="2" placeholder="Detalles del evento, artistas, promociones de la noche…" class="w-full rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-1.5 outline-none text-xs resize-none"></textarea>
+          
+          <div class="flex items-center justify-between pt-1">
+            <label class="cursor-pointer text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1">
+              <i class="ph-bold ph-image"></i> Foto del Evento
+              <input type="file" id="biz-event-photo-input" accept="image/*" class="hidden">
+            </label>
+            <span id="biz-event-photo-status" class="text-[10px] opacity-70">Sin foto</span>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="pt-2 flex gap-2">
+          <button type="submit" class="flex-1 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 active:scale-98 transition flex items-center justify-center gap-1.5">
+            <i class="ph-bold ph-floppy-disk text-base"></i>
+            <span>Guardar en Base de Datos</span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT CATEGORY -->
+  <div id="cat-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="glass rounded-3xl p-5 max-w-sm w-full space-y-3.5 shadow-2xl">
+      <div class="flex justify-between items-center pb-1 border-b border-slate-300/40 dark:border-slate-700/60">
+        <h3 class="font-bold text-base flex items-center gap-1.5">
+          <i class="ph-bold ph-squares-four text-indigo-500"></i>
+          <span>Gestionar Categorías</span>
+        </h3>
+        <button id="btn-close-cat-modal" class="fab !w-7 !h-7 text-lg bg-slate-500/20">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2">
+        <label class="font-bold text-xs opacity-90">Nueva Categoría</label>
+        <div class="flex gap-2">
+          <input type="text" id="new-cat-icon" placeholder="Emoji (ej. 💈)" maxlength="3" class="w-14 rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-2 py-2 text-center text-sm outline-none">
+          <input type="text" id="new-cat-name" placeholder="Nombre (ej. Barbería)" class="flex-1 rounded-xl bg-slate-500/15 dark:bg-slate-800/80 px-3 py-2 text-xs outline-none font-medium">
+        </div>
+        <button id="btn-save-new-cat" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 active:scale-98 transition">
+          + Agregar Categoría
+        </button>
+      </div>
+
+      <div class="space-y-1 pt-2 border-t border-slate-300/40 dark:border-slate-700/60">
+        <label class="font-bold text-xs opacity-90">Categorías Disponibles</label>
+        <div id="cat-list-manage" class="max-h-48 overflow-y-auto space-y-1 pr-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAVIGATION BAR -->
+  <nav class="bottom-nav glass border-t border-slate-300/40 dark:border-slate-800/70">
+    <button id="nav-tab-explore" class="flex flex-col items-center justify-center text-indigo-600 dark:text-indigo-400 flex-1 py-1 transition">
+      <i class="ph-fill ph-map-trifold text-2xl"></i>
+      <span class="text-[10px] font-bold mt-0.5">Explorar</span>
+    </button>
+    <button id="nav-tab-list" class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 flex-1 py-1 transition">
+      <i class="ph ph-squares-four text-2xl"></i>
+      <span class="text-[10px] font-medium mt-0.5">Directorio</span>
+    </button>
+    <button id="nav-tab-owner" class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 flex-1 py-1 transition">
+      <i class="ph ph-buildings text-2xl"></i>
+      <span class="text-[10px] font-medium mt-0.5">Mi Empresa</span>
+    </button>
+  </nav>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="glass rounded-full px-4 py-2.5 text-xs sm:text-sm font-semibold shadow-xl border border-slate-300/40 dark:border-slate-700/60 flex items-center gap-2"></div>
+
+  <!-- MAIN JAVASCRIPT ENTRY -->
+  <script src="./assets/ux-upgrade.js" defer></script>
+</body>
+</html>
